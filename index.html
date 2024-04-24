@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Cartoonizer App</title>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@500&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            background-image: linear-gradient(120deg, #a6c0fe 0%, #f68084 100%);
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+        }
+        
+        .main {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 1.25em 2.18em rgba(2, 44, 26, 0.2);
+            background-color: rgb(255, 255, 255);
+        }
+
+        .container > h1 {
+            letter-spacing: 1px;
+            color: rgb(80, 80, 80);
+            margin-bottom: 20px;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        label {
+            display: block;
+            position: relative;
+            background-color: #f68084;
+            text-align: center;
+            color: #ffffff;
+            font-size: 1.12em;
+            width: 16em;
+            margin: auto;
+            cursor: pointer;
+            border-radius: 0.3em;
+            padding: 1em 0;
+        }
+
+        #post-upload-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 3em 2em;
+            border-radius: 0.8em;
+            box-shadow: 0 2em 4em rgba(2, 44, 25, 0.2);
+        }
+
+        .image-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        img,
+        canvas {
+            width: 300px;
+            margin: 2px;
+        }
+
+        .btns {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            gap: 1em;
+            margin-top: 2em;
+        }   
+
+        .btns button,
+        .btns a {
+            padding: 1em 2em;
+            border: none;
+            font-size: 1em;
+            border-radius: 0.5em;
+        }
+
+        .btns button, .btns a {
+            text-decoration: none;
+            background-color: #f68084;
+            color: #ffffff;
+        }
+
+        .hide {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="main">
+
+        <div class="container">
+            <h1>Image Cartoonizer App</h1>
+
+            <div class="inputs">
+                <input type="file" id="file" accept="image/*" />
+                <label for="file">Upload Image</label>
+            </div>
+
+            <div id="post-upload-container" style="display: none;">
+                <div class="image-container">
+                  <img id="image" crossorigin="anonymous" />
+                  <canvas id="output-canvas" style="display: none;"></canvas>
+                </div>
+                <div class="btns">
+                  <button id="preview">Preview</button>
+                  <button onclick="location.reload()">Upload Again</button>
+                  <a href="" id="download" class="hide">Download</a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+
+    
+
+    <script>
+        const imgElement = document.getElementById("image");
+        const fileInput = document.getElementById("file");
+        const downloadButton = document.getElementById("download");
+        const previewButton = document.getElementById("preview");
+        const inputs = document.querySelector(".inputs");
+        const outputCanvas = document.getElementById("output-canvas");
+        const postUploadContainer = document.getElementById("post-upload-container");
+
+        let cvReady = false,
+        fileName = "";
+
+        function openCvReady() {
+            cv["onRuntimeInitialized"] = () => {
+                cvReady = true;
+            };
+        }
+
+        fileInput.onchange = () => {
+            let reader = new FileReader();
+            reader.readAsDataURL(fileInput.files[0]);
+            reader.onload = () => {
+                imgElement.setAttribute("src", reader.result);
+                inputs.style.display = 'none';
+                outputCanvas.style.display = 'none';
+                postUploadContainer.style.display = '';
+            };
+
+            fileName = fileInput.files[0].name.split(".")[0];
+        };
+
+        const imageApply = () => {
+            const mat = cv.imread(imgElement);
+            const newImage = new cv.Mat();
+            cv.cvtColor(mat, newImage, cv.COLOR_BGR2GRAY, 0);
+            const edges = new cv.Mat();
+            cv.adaptiveThreshold(
+                newImage,
+                edges,
+                255,
+                cv.ADAPTIVE_THRESH_MEAN_C,
+                cv.THRESH_BINARY,
+                9,
+                9
+            );
+            const color = new cv.Mat();
+            cv.bilateralFilter(newImage, color, 9, 250, 250, cv.BORDER_DEFAULT);
+            cv.cvtColor(mat, color, cv.COLOR_RGBA2RGB, 0);
+
+            const cartoon = new cv.Mat();
+            cv.bitwise_and(color, color, cartoon, edges);
+            cv.imshow("output-canvas", cartoon);
+            mat.delete();
+            newImage.delete();
+            edges.delete();
+            cartoon.delete();
+        };
+
+        previewButton.addEventListener("click", () => {
+            if (cvReady) {
+                imageApply();
+                downloadButton.classList.remove("hide");
+                outputCanvas.style.display = '';
+                let imagedata = outputCanvas.toDataURL("image/png");
+                downloadButton.href = imagedata;
+                downloadButton.download = `${fileName}.png`;
+            } else {
+                alert("Something went wrong.Please try again!");
+            }
+        });
+
+    </script>
+
+<script src="./open-cv.js" onload="openCvReady()"></script>
+
+</body>
+</html>
